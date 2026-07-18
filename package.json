@@ -4,9 +4,9 @@
   "description": "Cam temizlik hizmeti pazar yeri — abonelik, konum bazlı atama, AI kalite onayı, iyzico Pazaryeri bölüştürmeli ödeme",
   "main": "src/app.js",
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "nodemon src/app.js"
-  },
+   "start": "node app.js",
+"dev": "nodemon app.js",
+"db:migrate": "node migrate.js"
   "dependencies": {
     "express": "^4.19.2",
     "pg": "^8.12.0",
