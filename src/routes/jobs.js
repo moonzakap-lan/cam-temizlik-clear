@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const geoService = require('../services/geoService');
+const matchingService = require('../services/matchingService');
 const iyzicoService = require('../services/iyzicoService');
 const aiVerificationService = require('../services/aiVerificationService');
 const router = express.Router();
@@ -9,12 +9,12 @@ const PLATFORM_COMMISSION_RATE = 0.20; // %20 platform komisyonu — plan bazlı
 
 /**
  * POST /jobs
- * Yeni iş oluşturur, en yakın müsait temizlikçiyi bulup atar,
+ * Yeni iş oluşturur, rastgele müsait bir temizlikçi bulup atar,
  * ardından işletmenin kayıtlı kartından tahsilatı iyzico Pazaryeri
  * split-payment ile yapar (tutar temizlikçi payı için escrow'da bekler).
  */
 router.post('/', async (req, res) => {
-  const { subscriptionId, businessId, lng, lat, serviceAddress, scheduledAt, price, cardToken } = req.body;
+  const { subscriptionId, businessId, serviceAddress, scheduledAt, price, cardToken } = req.body;
 
   const client = await pool.connect();
   try {
@@ -24,19 +24,19 @@ router.post('/', async (req, res) => {
 
     const jobInsert = await client.query(
       `INSERT INTO jobs
-        (subscription_id, business_id, status, service_address, location, scheduled_at, price, cleaner_payout_amount, platform_commission)
-       VALUES ($1, $2, 'pending_assignment', $3, ST_SetSRID(ST_MakePoint($4,$5),4326)::geography, $6, $7, $8, $9)
+        (subscription_id, business_id, status, service_address, scheduled_at, price, cleaner_payout_amount, platform_commission)
+       VALUES ($1, $2, 'pending_assignment', $3, $4, $5, $6, $7)
        RETURNING *`,
-      [subscriptionId, businessId, serviceAddress, lng, lat, scheduledAt, price, cleanerPayoutAmount, +(price - cleanerPayoutAmount).toFixed(2)]
+      [subscriptionId, businessId, serviceAddress, scheduledAt, price, cleanerPayoutAmount, +(price - cleanerPayoutAmount).toFixed(2)]
     );
     await client.query('COMMIT');
 
     const job = jobInsert.rows[0];
 
-    // 1) En yakın müsait temizlikçiyi bul ve ata
-    const assignment = await geoService.assignJobToNearestCleaner(job.id, lng, lat);
+    // 1) Rastgele müsait bir temizlikçi bul ve ata
+    const assignment = await matchingService.assignJobToRandomCleaner(job.id);
     if (!assignment) {
-      return res.status(202).json({ job, message: 'Bölgede şu an müsait temizlikçi yok; kuyruğa alındı.' });
+      return res.status(202).json({ job, message: 'Şu an müsait temizlikçi yok; kuyruğa alındı.' });
     }
 
     // 2) İşletmeden tahsilat — bölüştürmeli (temizlikçi payı escrow'da tutulur)
