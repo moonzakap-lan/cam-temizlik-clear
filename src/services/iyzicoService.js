@@ -60,7 +60,7 @@ async function onboardCleanerAsSubmerchant(cleaner) {
  * price = business'tan çekilecek toplam tutar
  * cleanerPayoutAmount = temizlikçinin subMerchantPrice payı
  */
-async function chargeJobWithSplit({ job, business, cleaner, cardToken, conversationId }) {
+async function chargeJobWithSplit({ job, business, cleaner, card, conversationId }) {
   const platformCommission = (job.price - job.cleaner_payout_amount).toFixed(2);
 
   const request = {
@@ -72,7 +72,14 @@ async function chargeJobWithSplit({ job, business, cleaner, cardToken, conversat
     installment: '1',
     paymentChannel: Iyzipay.PAYMENT_CHANNEL.WEB,
     paymentGroup: Iyzipay.PAYMENT_GROUP.PRODUCT,
-    paymentCard: { paymentCardToken: cardToken }, // saklı kart / checkout form token akışı önerilir
+    paymentCard: {
+      cardHolderName: card.holderName,
+      cardNumber: card.number,
+      expireMonth: card.expireMonth,
+      expireYear: card.expireYear,
+      cvc: card.cvc,
+      registerCard: '0', // '1' yapılırsa iyzico kartı saklar ve bir sonraki adımda paymentCardToken kullanılabilir
+    },
     buyer: {
       id: business.id,
       name: business.contact_name,
