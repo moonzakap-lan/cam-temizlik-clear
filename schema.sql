@@ -1,9 +1,9 @@
 -- =====================================================================
 -- CAM TEMİZLİK HİZMETİ PAZAR YERİ — VERİTABANI ŞEMASI (PostgreSQL 15+)
--- Coğrafi sorgular (en yakın temizlikçi) için PostGIS zorunludur.
+-- Konum bazlı eşleştirme yok — rastgele müsait temizlikçi ataması yapılır.
+-- PostGIS gerekmiyor, standart Supabase projesinde ekstra eklenti açman gerekmez.
 -- =====================================================================
 
-CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
@@ -38,12 +38,10 @@ CREATE TABLE businesses (
   email               VARCHAR(255) UNIQUE NOT NULL,
   phone               VARCHAR(32) NOT NULL,
   address             TEXT NOT NULL,
-  location            GEOGRAPHY(POINT, 4326) NOT NULL,   -- lat/lng
   iyzico_buyer_id     VARCHAR(64),                        -- iyzico "buyer" referansı
   created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_businesses_location ON businesses USING GIST (location);
 
 -- ---------------------------------------------------------------------
 -- PLANS (abonelik paketleri)
@@ -86,8 +84,6 @@ CREATE TABLE cleaners (
   phone                       VARCHAR(32) NOT NULL,
   tc_identity_number          VARCHAR(11),                 -- bireysel alt üye için zorunlu
   iban                        VARCHAR(34) NOT NULL,
-  location                    GEOGRAPHY(POINT, 4326),      -- son bilinen konum
-  location_updated_at         TIMESTAMPTZ,
   is_available                BOOLEAN NOT NULL DEFAULT false,
   rating_avg                  NUMERIC(3,2) DEFAULT 5.00,
   active_job_count             SMALLINT NOT NULL DEFAULT 0,
@@ -98,7 +94,6 @@ CREATE TABLE cleaners (
   created_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_cleaners_location ON cleaners USING GIST (location);
 CREATE INDEX idx_cleaners_availability ON cleaners(is_available) WHERE is_available = true;
 
 -- ---------------------------------------------------------------------
@@ -111,7 +106,6 @@ CREATE TABLE jobs (
   cleaner_id              UUID REFERENCES cleaners(id),
   status                  job_status NOT NULL DEFAULT 'pending_assignment',
   service_address         TEXT NOT NULL,
-  location                GEOGRAPHY(POINT, 4326) NOT NULL,
   scheduled_at             TIMESTAMPTZ NOT NULL,
   price                   NUMERIC(10,2) NOT NULL,          -- işletmeden tahsil edilen toplam tutar
   cleaner_payout_amount   NUMERIC(10,2) NOT NULL,          -- temizlikçiye gidecek pay (subMerchantPrice)
@@ -128,7 +122,6 @@ CREATE TABLE jobs (
 );
 CREATE INDEX idx_jobs_status ON jobs(status);
 CREATE INDEX idx_jobs_cleaner ON jobs(cleaner_id);
-CREATE INDEX idx_jobs_location ON jobs USING GIST (location);
 
 -- ---------------------------------------------------------------------
 -- JOB PHOTOS
@@ -181,11 +174,10 @@ CREATE INDEX idx_payments_job ON payments(job_id);
 ALTER TABLE jobs ADD CONSTRAINT fk_jobs_payment FOREIGN KEY (payment_id) REFERENCES payments(id);
 
 -- ---------------------------------------------------------------------
--- EN YAKIN MÜSAİT TEMİZLİKÇİYİ BULMA (KNN — PostGIS <-> operatörü index kullanır)
+-- RASTGELE MÜSAİT TEMİZLİKÇİ SEÇİMİ (referans — kod tarafında da uygulanıyor)
 -- ---------------------------------------------------------------------
--- Örnek kullanım: jobs.location'a göre en yakın 5 müsait temizlikçi
--- SELECT id, full_name, location <-> $1::geography AS distance_m
+-- SELECT id, full_name
 -- FROM cleaners
--- WHERE is_available = true AND onboarding_status = 'approved'
--- ORDER BY location <-> $1::geography
--- LIMIT 5;
+-- WHERE is_available = true AND onboarding_status = 'approved' AND active_job_count < 3
+-- ORDER BY random()
+-- LIMIT 1;
