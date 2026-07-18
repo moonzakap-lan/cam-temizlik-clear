@@ -1,0 +1,16 @@
+{
+  "name": "glass-cleaning-marketplace",
+  "version": "1.0.0",
+  "description": "Cam temizlik hizmeti pazar yeri — abonelik, konum bazlı atama, AI kalite onayı, iyzico Pazaryeri bölüştürmeli ödeme",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.12.0",
+    "iyzipay": "^2.0.61",
+    "dotenv": "^16.4.5"
+  }
+}
