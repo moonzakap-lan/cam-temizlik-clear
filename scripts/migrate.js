@@ -20,7 +20,7 @@ async function migrate() {
     ssl: process.env.DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false },
   });
 
- const schemaPath = path.join(__dirname, 'schema.sql');
+const schemaPath = path.join(__dirname, '..', 'schema.sql');
   const sql = fs.readFileSync(schemaPath, 'utf8');
 
   console.log('Şema uygulanıyor...');
