@@ -14,7 +14,7 @@ const PLATFORM_COMMISSION_RATE = 0.20; // %20 platform komisyonu — plan bazlı
  * split-payment ile yapar (tutar temizlikçi payı için escrow'da bekler).
  */
 router.post('/', async (req, res) => {
-  const { subscriptionId, businessId, serviceAddress, scheduledAt, price, cardToken } = req.body;
+  const { subscriptionId, businessId, serviceAddress, scheduledAt, price, card } = req.body;
 
   const client = await pool.connect();
   try {
@@ -45,7 +45,7 @@ router.post('/', async (req, res) => {
       job: assignment.job,
       business,
       cleaner: assignment.cleaner,
-      cardToken,
+      card,
       conversationId: `job-${job.id}`,
     });
 
