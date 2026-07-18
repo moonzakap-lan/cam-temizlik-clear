@@ -1,5 +1,4 @@
-const { pool } = require('../db');
-
+const { pool } = require('./db');
 const MAX_SEARCH_RADIUS_M = 25000; // 25 km, iş bölgesi dışına atama yapılmaz
 
 /**
