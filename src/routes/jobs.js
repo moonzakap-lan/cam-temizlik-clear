@@ -1,8 +1,8 @@
 const express = require('express');
-const { pool } = require('./db');
-const geoService = require('./geoService');
-const iyzicoService = require('./iyzicoService');
-const aiVerificationService = require('./aiVerificationService');
+const { pool } = require('../db');
+const geoService = require('../services/geoService');
+const iyzicoService = require('../services/iyzicoService');
+const aiVerificationService = require('../services/aiVerificationService');
 const router = express.Router();
 
 const PLATFORM_COMMISSION_RATE = 0.20; // %20 platform komisyonu — plan bazlı da olabilir
