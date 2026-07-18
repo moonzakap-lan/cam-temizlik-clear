@@ -6,16 +6,30 @@
  *   2) Ödeme               -> POST /payment/auth             (subMerchantKey + subMerchantPrice ile bölüştürme, tutar escrow'da tutulur)
  *   3) Onay (Onay)          -> POST /payment/iyzipos/item/approve  (AI onayından sonra escrow tutarı alt üyeye serbest bırakılır)
  *
- * Not: iyzico Node SDK'sı (iyzipay) callback tabanlıdır; burada Promise'e sarmalıyoruz.
+ * MOCK MOD: IYZICO_API_KEY ortam değişkeni tanımlı değilse (ya da
+ * MOCK_PAYMENTS=true ise), gerçek iyzico çağrısı yapılmaz — sahte ama
+ * gerçekçi şekilde biçimlendirilmiş bir başarı sonucu döner. Bu sayede
+ * abonelik/iş/fotoğraf/AI onay akışının tamamı, gerçek Iyzico hesabı
+ * kurulmadan uçtan uca test edilebilir. Iyzico entegre edilmeye hazır
+ * olduğunda IYZICO_API_KEY + IYZICO_SECRET_KEY Render'a eklenince mock
+ * mod otomatik olarak devre dışı kalır — kodda değişiklik gerekmez.
  */
 
 const Iyzipay = require('iyzipay');
 
-const iyzipay = new Iyzipay({
-  apiKey: process.env.IYZICO_API_KEY,
-  secretKey: process.env.IYZICO_SECRET_KEY,
-  uri: process.env.IYZICO_BASE_URL || 'https://sandbox-api.iyzipay.com',
-});
+const MOCK_MODE = !process.env.IYZICO_API_KEY || process.env.MOCK_PAYMENTS === 'true';
+
+const iyzipay = MOCK_MODE
+  ? null
+  : new Iyzipay({
+      apiKey: process.env.IYZICO_API_KEY,
+      secretKey: process.env.IYZICO_SECRET_KEY,
+      uri: process.env.IYZICO_BASE_URL || 'https://sandbox-api.iyzipay.com',
+    });
+
+if (MOCK_MODE) {
+  console.warn('[iyzicoService] MOCK_MODE aktif — gerçek Iyzico çağrısı yapılmıyor, sahte başarı dönülüyor.');
+}
 
 function toPromise(method, request) {
   return new Promise((resolve, reject) => {
@@ -27,11 +41,17 @@ function toPromise(method, request) {
   });
 }
 
+function mockId(prefix) {
+  return `${prefix}-mock-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+}
+
 /**
  * ADIM 1 — Temizlikçiyi bireysel (PERSONAL) alt üye işyeri olarak kaydeder.
  * Dönen subMerchantKey, cleaners.iyzico_submerchant_key kolonuna yazılmalıdır.
  */
 async function onboardCleanerAsSubmerchant(cleaner) {
+  if (MOCK_MODE) return mockId('submerchant');
+
   const request = {
     locale: Iyzipay.LOCALE.TR,
     conversationId: `onboard-${cleaner.id}`,
@@ -62,6 +82,15 @@ async function onboardCleanerAsSubmerchant(cleaner) {
  */
 async function chargeJobWithSplit({ job, business, cleaner, card, conversationId }) {
   const platformCommission = (job.price - job.cleaner_payout_amount).toFixed(2);
+
+  if (MOCK_MODE) {
+    return {
+      iyzicoPaymentId: mockId('payment'),
+      iyzicoPaymentTransactionId: mockId('txn'),
+      rawResponse: { mock: true, note: 'MOCK_MODE — gerçek ödeme yapılmadı' },
+      platformCommission,
+    };
+  }
 
   const request = {
     locale: Iyzipay.LOCALE.TR,
@@ -121,6 +150,8 @@ async function chargeJobWithSplit({ job, business, cleaner, card, conversationId
  * settlement takvimine göre gerçekleşir).
  */
 async function approvePayoutToCleaner({ paymentTransactionId, conversationId }) {
+  if (MOCK_MODE) return { status: 'success', mock: true };
+
   const request = {
     locale: Iyzipay.LOCALE.TR,
     conversationId,
@@ -134,6 +165,8 @@ async function approvePayoutToCleaner({ paymentTransactionId, conversationId }) 
  * AI onaylamazsa: escrow tutarı iade edilir / reddedilir.
  */
 async function disapprovePayout({ paymentTransactionId, conversationId }) {
+  if (MOCK_MODE) return { status: 'success', mock: true };
+
   const request = {
     locale: Iyzipay.LOCALE.TR,
     conversationId,
@@ -147,4 +180,5 @@ module.exports = {
   chargeJobWithSplit,
   approvePayoutToCleaner,
   disapprovePayout,
+  MOCK_MODE,
 };
