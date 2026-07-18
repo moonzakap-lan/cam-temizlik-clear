@@ -7,9 +7,9 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js",
-    "db:migrate": "node migrate.js"
+    "start": "node src/app.js",
+"dev": "nodemon src/app.js",
+"db:migrate": "node scripts/migrate.js"
   },
   "dependencies": {
     "express": "^4.19.2",
