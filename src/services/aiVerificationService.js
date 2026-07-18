@@ -3,9 +3,20 @@
  * karşılaştırarak) bir vision-capable LLM'e göndererek temizlik
  * kalitesini puanlar. Sağlayıcı bağımsız tutulmuştur — Anthropic
  * Messages API (vision) veya benzeri bir servisle değiştirilebilir.
+ *
+ * MOCK MOD: ANTHROPIC_API_KEY tanımlı değilse veya gerçek bir Anthropic
+ * key formatında değilse (sk-ant- ile başlamıyorsa), gerçek API çağrısı
+ * yapılmaz — sabit, gerçekçi bir "onaylandı" sonucu döner. Gerçek key
+ * Render'a eklenince mock mod otomatik devre dışı kalır.
  */
 
 const DECISION_THRESHOLD = 0.75;
+
+const MOCK_MODE = !process.env.ANTHROPIC_API_KEY || !process.env.ANTHROPIC_API_KEY.startsWith('sk-ant-');
+
+if (MOCK_MODE) {
+  console.warn('[aiVerificationService] MOCK_MODE aktif — gerçek AI çağrısı yapılmıyor, sahte onay dönülüyor.');
+}
 
 const VERIFICATION_PROMPT = `
 Sana bir cam temizlik işinden önce ve sonra çekilmiş iki fotoğraf (varsa)
@@ -19,6 +30,15 @@ Yalnızca şu JSON formatında yanıt ver, başka hiçbir metin ekleme:
 `.trim();
 
 async function verifyCleaningPhoto({ beforePhotoUrl, afterPhotoUrl }) {
+  if (MOCK_MODE) {
+    return {
+      cleanlinessScore: 0.9,
+      reasoning: 'MOCK_MODE — gerçek AI analizi yapılmadı, sabit onay puanı döndürüldü.',
+      isApproved: true,
+      rawResponse: { mock: true },
+    };
+  }
+
   const content = [{ type: 'text', text: VERIFICATION_PROMPT }];
   if (beforePhotoUrl) content.push({ type: 'image', source: { type: 'url', url: beforePhotoUrl } });
   content.push({ type: 'image', source: { type: 'url', url: afterPhotoUrl } });
@@ -49,4 +69,4 @@ async function verifyCleaningPhoto({ beforePhotoUrl, afterPhotoUrl }) {
   };
 }
 
-module.exports = { verifyCleaningPhoto, DECISION_THRESHOLD };
+module.exports = { verifyCleaningPhoto, DECISION_THRESHOLD, MOCK_MODE };
